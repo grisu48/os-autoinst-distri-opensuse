@@ -181,6 +181,7 @@ sub create_guest {
     my $maxmemory    = $guest->{maxmemory}    // $memory + 16;   # use by default just a bit more, so that we don't waste memory but still use the functionality
     my $vcpus        = $guest->{vcpus}        // "2";
     my $maxvcpus     = $guest->{maxvcpus}     // $vcpus + 1;     # same as for memory, test functionality but don't waste resources
+    my $wait         = -1;
     my $extra_args   = get_var("VIRTINSTALL_EXTRA_ARGS", "") . " " . get_var("VIRTINSTALL_EXTRA_ARGS_" . uc($name), "");
     $extra_args = trim($extra_args);
 
@@ -196,15 +197,26 @@ sub create_guest {
         assert_script_run "sync",                                                                             180;
         script_run "qemu-img info /var/lib/libvirt/images/xen/$name.$diskformat";
 
+        # SLES11SP4 needs a special handling here
+        $wait = 30 if ($name =~ "sles11sp4");
+
         $extra_args  = "autoyast=$autoyastURL $extra_args";
         $extra_args  = trim($extra_args);
         $virtinstall = "virt-install $extra_params --name $name --vcpus=$vcpus,maxvcpus=$maxvcpus --memory=$memory,maxmemory=$maxmemory --vnc";
         $virtinstall .= " --disk /var/lib/libvirt/images/xen/$name.$diskformat --noautoconsole";
-        $virtinstall .= " --network network=default,mac=$macaddress --autostart --location=$location --wait -1";
+        $virtinstall .= " --network network=default,mac=$macaddress --autostart --location=$location --wait $wait";
         $virtinstall .= " --events on_reboot=$on_reboot" unless ($on_reboot eq '');
         $virtinstall .= " --extra-args '$extra_args'"    unless ($extra_args eq '');
         record_info("$name", "Creating $name guests:\n$virtinstall");
-        script_run "$virtinstall >> ~/virt-install_$name.txt 2>&1 & true";    # true required because & terminator is not allowed
+
+        # Special handling for SLES11 because of bsc#1188244
+        if ($name =~ "sles11sp4") {
+            # bsc#1188244: SLES11SP4 guests might be stuck when the installer starts.
+            # So far the only way how to circumvent that the test runs break, is to try multiple times and hope for the best
+            script_retry("$virtinstall 2>&1 | tee -a ~/virt-install_$name.txt", retry => 10, timeout => ($wait + 1) * 60, delay => 60);
+        } else {
+            script_run "$virtinstall >> ~/virt-install_$name.txt 2>&1 & true";
+        }
 
         # wait for initrd to ensure the installation is starting
         script_retry("grep -B99 -A99 'initrd' ~/virt-install_$name.txt", delay => 15, retry => 12, die => 0);
