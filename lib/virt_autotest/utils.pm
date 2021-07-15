@@ -349,6 +349,7 @@ sub remove_additional_nic {
 }
 
 sub collect_virt_system_logs {
+    # Note: tar commands require script_retry because occasionally of the log files changes during creation
     if (script_run("test -f /var/log/libvirt/libvirtd.log") == 0) {
         upload_logs("/var/log/libvirt/libvirtd.log");
     } else {
@@ -356,14 +357,14 @@ sub collect_virt_system_logs {
     }
 
     if (script_run("test -d /var/log/libvirt/libxl/") == 0) {
-        assert_script_run 'tar czvf /tmp/libxl.tar.gz /var/log/libvirt/libxl/';
+        script_retry('tar czvf /tmp/libxl.tar.gz /var/log/libvirt/libxl/', retry => 3);
         upload_asset '/tmp/libxl.tar.gz';
     } else {
         record_info "Directory /var/log/libvirt/libxl/ does not exist.";
     }
 
     if (script_run("test -d /var/log/xen/") == 0) {
-        assert_script_run 'tar czvf /tmp/xen.tar.gz /var/log/xen/';
+        script_retry('tar czvf /tmp/xen.tar.gz /var/log/xen/', retry => 3);
         upload_asset '/tmp/xen.tar.gz';
     } else {
         record_info "Directory /var/log/xen/ does not exist.";
