@@ -105,9 +105,7 @@ sub run {
     zypper_call 'in sudo expect';
     select_console 'user-console';
 
-    my $self = shift;
-    $self->clear_and_verify_console;
-    save_screenshot;
+    select_user_serial_terminal;
 
     # Check if sudo asks for the root password.
     # On Azure from SLE15 onwards, 'Defaults targetpw' is disabled. There sudo is expected to ask for the user password
