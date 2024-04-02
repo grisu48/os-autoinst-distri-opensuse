@@ -104,6 +104,10 @@ sub run {
     select_console 'root-console';
     zypper_call 'in sudo expect';
     select_console 'user-console';
+
+    $self->clear_and_verify_console;
+    save_screenshot;
+
     # Check if sudo asks for the root password.
     # On Azure from SLE15 onwards, 'Defaults targetpw' is disabled. There sudo is expected to ask for the user password
     my $exp_user = (is_azure && is_sle(">=15")) ? "$testapi::username" : "root";
