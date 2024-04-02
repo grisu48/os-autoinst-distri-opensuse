@@ -105,6 +105,7 @@ sub run {
     zypper_call 'in sudo expect';
     select_console 'user-console';
 
+    my $self = shift;
     $self->clear_and_verify_console;
     save_screenshot;
 
