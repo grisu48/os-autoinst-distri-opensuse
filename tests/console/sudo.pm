@@ -21,6 +21,7 @@ use testapi;
 use utils 'zypper_call';
 use version_utils qw(is_sle is_public_cloud);
 use publiccloud::utils qw(is_azure is_byos);
+use serial_terminal;
 
 my $test_password = 'Sud0_t3st';
 my $parm_user = '';
