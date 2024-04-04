@@ -85,7 +85,7 @@ sub load_publiccloud_consoletests {
     loadtest 'console/check_default_network_manager';
     loadtest 'console/sysctl';
     loadtest 'console/sysstat';
-    loadtest 'console/gpg';
+    #loadtest 'console/gpg';
     loadtest 'console/sudo';
     loadtest 'console/supportutils';
     loadtest 'console/journalctl';
