@@ -25,6 +25,8 @@ sub run {
 
     select_host_console();    # select console on the host, not the PC instance
 
+    record_info("ip", script_output('curl ifconfig.me/all'));
+
     # Prevent kernel messages of the helper VM to contaminate the serial console
     # this is needed on our ext4-based helper VM to avoid kernel messages from overlayfs
     # to confuse openQA
