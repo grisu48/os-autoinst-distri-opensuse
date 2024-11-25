@@ -116,6 +116,7 @@ sub run {
         $bci_devel_repo = "http://openqa.suse.de/assets/repo/$bci_repo";
     }
     my $bci_target = get_var('BCI_TARGET', 'ibs-cr');
+    my $bci_baseurl = get_var('BCI_BASEURL', '');
     my $version = get_required_var('VERSION');
     my $test_envs = get_required_var('BCI_TEST_ENVS');
     my $bci_virtualenv = get_var('BCI_VIRTUALENV', 0);
@@ -134,6 +135,7 @@ sub run {
     $version = lc($version);
     assert_script_run("export OS_VERSION=$version");
     assert_script_run("export TARGET=$bci_target");
+    assert_script_run("export BASEURL=$bci_baseurl") if ($bci_baseurl);
     assert_script_run("export BCI_DEVEL_REPO=$bci_devel_repo") if $bci_devel_repo;
 
     # Run environment specific tests

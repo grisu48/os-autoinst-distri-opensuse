@@ -34,6 +34,7 @@ BCI_TESTS_REPO | string | | Location of the bci-tests repository to be cloned. U
 BCI_TESTS_BRANCH | string | | Branch to be cloned from bci-tests. Used by `bci_prepare.pm`.
 BCI_TIMEOUT | string | | Timeout given to the command to test each environment. Used by `bci_test.pm`.
 BCI_TARGET | string | ibs-cr | Container project to be tested. `ibs-cr` is the CR project, `ibs` is the released images project
+BCI_BASEURL | string | | Container base URL to be used, if BCI_TARGET is set to "custom"
 BCI_SKIP | boolean | false | Switch to disable BCI test runs. Necessary for fine-granular test disablement
 BCI_PREPARE | boolean | false | Launch the bci_prepare step again. Useful to re-initialize the BCI-Test repo when using a different BCI_TESTS_REPO
 BCI_VIRTUALENV | boolean | false | Use a virtualenv for pip dependencies in BCI tests
