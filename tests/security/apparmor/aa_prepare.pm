@@ -15,7 +15,7 @@ use strict;
 use warnings;
 use testapi;
 use utils 'zypper_call';
-use version_utils qw(is_jeos);
+use version_utils qw(is_jeos is_tumbleweed);
 use services::apparmor;
 use serial_terminal qw(select_serial_terminal);
 
@@ -24,7 +24,8 @@ sub run {
     zypper_call 'in -t pattern apparmor';
     if (is_jeos) {
         record_info 'JeOS', 'Some packages needed by the tests are not pre-installed by default in JeOS.';
-        zypper_call 'in apparmor-utils screen nscd netpbm';
+        zypper_call 'in apparmor-utils screen netpbm';
+        zypper_call 'in nscd' unless (is_tumbleweed);    # nscd removed from Tumbleweed, see poo#176154
     }
     services::apparmor::start_service;
     services::apparmor::enable_service;
