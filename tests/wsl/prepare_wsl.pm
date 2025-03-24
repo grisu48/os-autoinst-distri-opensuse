@@ -25,6 +25,10 @@ sub run {
 
     $self->open_powershell_as_admin;
 
+    # Disable temporarily, to allow the powershell commands to setup the agent before it is being used.
+    my $openqa_agent = get_var("OPENQA_AGENT", 0);
+    set_var("OPENQA_AGENT", "0") if ($openqa_agent);
+
     if (get_var('WSL2')) {
         # WSL2 platform must be enabled from the MSstore from now on
         $self->run_in_powershell(
@@ -59,6 +63,22 @@ sub run {
 
     $self->reboot_or_shutdown(is_reboot => 1);
     $self->wait_boot_windows;
+
+    # Install and enable the openQA-agent
+    if ($openqa_agent) {
+        $self->open_powershell_as_admin;
+        my $uri = "https://github.com/grisu48/openqa-agent/releases/download/v" . get_required_var("OPENQA_AGENT_VERSION") . "/agent-Windows-amd64";
+        my $exe = 'C:\\agent.exe';
+        # Exclude agent from Windows Defender and allow in Firewall
+        ##$self->run_in_powershell(cmd => "Set-MpPreference -ExclusionPath \"$exe\""); # Currently disabled.
+        $self->run_in_powershell(cmd => "New-NetFirewallRule -DisplayName \"Allow openqa-agent\" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8421");
+        $self->run_in_powershell(cmd => "Invoke-WebRequest -Uri \"$uri\" -OutFile \"$exe\"", timeout => 300);
+        $self->run_in_powershell(cmd => "Start-Job -ScriptBlock { $exe -t nots3cr3t -b \":8421\" }");
+        $self->run_in_powershell(cmd => "Get-NetIPAddress > ip.txt");
+        $self->run_in_powershell(cmd => "Select-String -Path ip.txt -Pattern \"IPAddress\"");
+        set_var("OPENQA_AGENT", "1");
+        $self->run_in_powershell(cmd => "echo 1");
+    }
 }
 
 1;

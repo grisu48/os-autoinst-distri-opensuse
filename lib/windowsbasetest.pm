@@ -8,6 +8,8 @@ use Mojo::Base qw(basetest);
 use Utils::Architectures qw(is_aarch64);
 use testapi;
 
+my $host_ip = "10.0.2.15";
+my $token = "nots3cr3t";
 
 sub windows_run {
     my ($self, $cmd) = @_;
@@ -108,6 +110,32 @@ sub close_powershell {
 
 sub run_in_powershell {
     my ($self, %args) = @_;
+
+    if (check_var("OPENQA_AGENT", "1")) {
+        my $url = "http://$host_ip:8421/exec";
+        my %body = {
+            cmd => $args{cmd},
+            shell => "powershell",
+            timeout => 30
+        };
+
+        my $ua = Mojo::UserAgent->new;
+        $ua = $ua->max_connections(5);
+        $ua = $ua->max_redirects(3);
+        $ua = $ua->connect_timeout(30);
+
+        my $res = $ua->post("$url" => {Token => "$token"} => json => \%body)->result();
+        my $body = $res->json;
+        my $output => $body->stdout;
+        $output .= "\n" . $body->stderr if ($body->stderr);
+        if ($res->code != 200) {
+            record_info("$args{cmd}", "$args{cmd}\n" . $res->body->stdout, result => 'fail');
+            die "openqa-agent exec failed (code $res->code)";
+        }
+        record_info("$args{cmd}", "$args{cmd}\n" . $res->body->stdout);
+        return;
+    }
+
     my $rc_hash = testapi::hashed_string $args{cmd};
 
     type_string $args{cmd}, max_interval => 125;
