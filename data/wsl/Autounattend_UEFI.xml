@@ -378,7 +378,7 @@
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>64</Order>
-          <Path>powershell.exe -NoProfile -Command "Invoke-WebRequest -Uri https://github.com/grisu48/openqa-agent/releases/download/v1.1.0/agent-Windows-amd64 -OutFile 'C:\Program Files\openqa-agent.exe'"</Path>
+          <Path>powershell.exe -NoProfile -Command "Invoke-WebRequest -Uri https://github.com/grisu48/openqa-agent/releases/download/v1.1.1/agent-Windows-amd64 -OutFile 'C:\Program Files\openqa-agent.exe'"</Path>
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>65</Order>

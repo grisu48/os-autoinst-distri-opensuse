@@ -7,6 +7,7 @@ package windowsbasetest;
 use Mojo::Base qw(basetest);
 use Utils::Architectures qw(is_aarch64);
 use testapi;
+use JSON;
 
 
 sub windows_run {
@@ -108,6 +109,20 @@ sub close_powershell {
 
 sub run_in_powershell {
     my ($self, %args) = @_;
+
+    # Use openQA agent, if desired
+    if (check_var("OPENQA_AGENT", "1")) {
+        type_string($args{cmd}, max_interval => 125);
+        my $reply = wait_serial('\0', timeout => 300, quiet => 1);
+        $reply =~ s/\0$//;
+        record_info("reply", $reply);
+        my $json = decode_json($reply);
+        die "Waiting for godot ..." if ($json->{ret} == 124);
+        die "Command '$args{cmd}' failed with return code $json->{ret}" unless ($json->{ret} == 0);
+        record_info($json->{cmd}, "$json->{stdout}\n$json->{stderr}");
+        return;
+    }
+
     my $rc_hash = testapi::hashed_string $args{cmd};
 
     type_string $args{cmd}, max_interval => 125;
