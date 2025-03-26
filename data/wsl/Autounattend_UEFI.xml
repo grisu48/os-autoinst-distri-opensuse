@@ -394,7 +394,7 @@
         </RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add">
           <Order>68</Order>
-          <Path>powershell.exe -NoProfile -Command 'echo "---`nshell: `"powershell`"`nserial:`n  port: `"COM1:9600,None,8,one`"`n" > C:\Programdata\openqa-agent.yaml'</Path>
+          <Path>powershell.exe -NoProfile -Command {echo "---`nshell: `"powershell`"`nserial:`n  port: `"COM1:9600,None,8,one`"`n" > C:\Programdata\openqa-agent.yaml }</Path>
         </RunSynchronousCommand>
       </RunSynchronous>
     </component>
