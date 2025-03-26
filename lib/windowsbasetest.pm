@@ -114,12 +114,12 @@ sub run_in_powershell {
     if (check_var("OPENQA_AGENT", "1")) {
         type_string($args{cmd}, max_interval => 125);
         my $reply = wait_serial('\0', timeout => 300, quiet => 1);
-        $reply =~ s/\0$//;
+        $reply =~ s/\0$//;    # remove termination character
         record_info("reply", $reply);
         my $json = decode_json($reply);
-        die "Waiting for godot ..." if ($json->{ret} == 124);
-        die "Command '$args{cmd}' failed with return code $json->{ret}" unless ($json->{ret} == 0);
         record_info($json->{cmd}, "$json->{stdout}\n$json->{stderr}");
+        die "Command '$args{cmd}' timed out" if ($json->{ret} == 124);
+        die "Command '$args{cmd}' failed with return code $json->{ret}" unless ($json->{ret} == 0);
         return;
     }
 
