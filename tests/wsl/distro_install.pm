@@ -34,7 +34,8 @@ sub run {
     assert_screen 'windows-desktop';
 
     $self->open_powershell_as_admin;
-    # Set the version for WSL1
+    $self->run_in_powershell(cmd => 'echo 1', timeout => 30);    ## XXX: Remove me!
+                                                                 # Set the version for WSL1
     $self->run_in_powershell(
         cmd => 'wsl --set-default-version 1',
         timeout => 30

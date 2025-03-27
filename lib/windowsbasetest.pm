@@ -4,10 +4,12 @@
 # SPDX-License-Identifier: FSFAP
 
 package windowsbasetest;
+use JSON;
+use autotest 'query_isotovideo';
 use Mojo::Base qw(basetest);
 use Utils::Architectures qw(is_aarch64);
 use testapi;
-
+use Data::Dumper;
 
 sub windows_run {
     my ($self, $cmd) = @_;
@@ -21,6 +23,8 @@ sub windows_run {
 
 
 sub _setup_serial_device {
+    return if (check_var('OPENQA_AGENT', '1'));    # Not needed if OpenQA-agent is used
+
     # Prevent that openqa-agent blocks the serial port, if present
     type_string "Stop-Service openqa-agent";
     wait_screen_change(sub { send_key 'ret' }, 10);
@@ -61,6 +65,8 @@ sub select_windows_in_grub2 {
 
 sub open_powershell_as_admin {
     my ($self, %args) = @_;
+
+    return if (check_var('OPENQA_AGENT', '1'));    # Not needed if OpenQA-agent is used
 
     #If using windows server, and logged with Administrator, only open powershell
     if (get_var('QAM_WINDOWS_SERVER')) {
@@ -113,6 +119,38 @@ sub close_powershell {
 
 sub run_in_powershell {
     my ($self, %args) = @_;
+
+    # Use OPENQA_AGENT on the serial port for command execution
+    if (check_var('OPENQA_AGENT', '1')) {
+
+        my %backpack = (
+            regexp => "\n",
+            timeout => 90,
+            expect_not_found => 0,
+            quiet => 0,
+            no_regex => 1,
+            buffer_size => undef,
+            record_output => undef
+        );
+        #my $ret = query_isotovideo('backend_wait_serial', \%args);
+
+
+        # Note: The current console doesn't qualify as "serial" so we need to do everything by hand here.
+        query_isotovideo('backend_type_string', {text => $args{cmd} . "\n", max_interval => 125});
+        #query_isotovideo('backend_type_string', {text => $string, %args});
+        my $ret = query_isotovideo('backend_wait_serial', \%backpack);
+        die "No response from openQA agent" unless $ret;
+        record_info("ret", Dumper($ret));
+        die "Termination character not matched" unless $ret->{matched};
+        my $response = $ret->{string};
+        $response =~ s/\n$//;    # Crop termination character
+        die "No response from openQA agent" unless $response;
+        my $rc = decode_json($response);
+        die "Command failed: '$args{cmd}' returned with code $rc->{ret}" unless ($rc->{ret} == 0);
+        record_info($args{cmd}, "$rc->{stdout}\n$rc->{stderr}");
+        return;
+    }
+
     my $rc_hash = testapi::hashed_string $args{cmd};
 
     type_string $args{cmd}, max_interval => 125;
