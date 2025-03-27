@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: FSFAP
 
 package windowsbasetest;
+use JSON;
 use Mojo::Base qw(basetest);
 use Utils::Architectures qw(is_aarch64);
 use testapi;
@@ -113,6 +114,20 @@ sub close_powershell {
 
 sub run_in_powershell {
     my ($self, %args) = @_;
+
+    if (check_var('OPENQA_AGENT', '1')) {
+        type_string $args{cmd}, max_interval => 125;
+        send_key 'ret';
+        my $response = wait_serial("\0", timeout => (exists $args{timeout}) ? $args{timeout} : 300);
+        $response ~= s/\0$//; # Crop termination character
+        die "No response from openQA agent" unless $response;
+
+        my $json = decode_json($response);
+        die "Command failed: '$args{cmd}' returned with code $rc->{ret}" unless ($rc->{ret} == 0);
+        record_info($args{cmd}, "$rc->{stdout}\n$rc->{stderr}");
+        return;
+    }
+
     my $rc_hash = testapi::hashed_string $args{cmd};
 
     type_string $args{cmd}, max_interval => 125;
