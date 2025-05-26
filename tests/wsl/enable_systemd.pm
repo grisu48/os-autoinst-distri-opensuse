@@ -42,16 +42,6 @@ sub run {
             wait_still_screen stilltime => 3, timeout => 10, similarity_level => 43;
         }
     );
-    # Hopefully temporary workaround for https://github.com/microsoft/WSL/issues/11857
-    $self->run_in_powershell(cmd => q(wsl /bin/bash -c "echo '[wsl2]`nkernelCommandLine = cgroup_no_v1=all' >> ~/.wslconfig")) if is_tumbleweed;
-    # Reboot to let cgroupv2 take effect. We do a 'sleep' for now until we find a better way.
-    $self->run_in_powershell(cmd => q(wsl --shutdown));
-    sleep 60;    # give the system time to shutdown
-    $self->run_in_powershell(cmd => q(wsl true));
-    sleep 60;    # give the system time to boot
-    $self->run_in_powershell(cmd => 'wsl --user root systemctl is-system-running');
-    sleep 60;    # give the system time to boot
-    $self->run_in_powershell(cmd => 'wsl --user root systemctl is-system-running');
     $self->run_in_powershell(
         cmd => '$port.WriteLine($(wsl --user root systemctl is-system-running))',
         code => sub {
