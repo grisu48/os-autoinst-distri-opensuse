@@ -26,9 +26,9 @@ sub run {
 
     # Check that systemd is not enabled by default.
     $self->run_in_powershell(
-        cmd => '$port.WriteLine($(wsl /bin/bash -c "systemctl is-system-running"))',
+        cmd => '$port.WriteLine($(wsl --user root systemctl is-system-running))',
         code => sub {
-            die("Systemd is running by default...")
+            die("Systemd is running when it shouldn't")
               unless wait_serial("offline");
         }
     );
@@ -43,16 +43,22 @@ sub run {
         }
     );
     # Hopefully temporary workaround for https://github.com/microsoft/WSL/issues/11857
-    $self->run_in_powershell(cmd => q(echo "[wsl2]`nkernelCommandLine = cgroup_no_v1=all" >> ~/.wslconfig)) if is_tumbleweed;
+    $self->run_in_powershell(cmd => q(wsl /bin/bash -c "echo '[wsl2]`nkernelCommandLine = cgroup_no_v1=all' >> ~/.wslconfig")) if is_tumbleweed;
+    # Reboot to let cgroupv2 take effect. We do a 'sleep' for now until we find a better way.
     $self->run_in_powershell(cmd => q(wsl --shutdown));
+    sleep 60;    # give the system time to shutdown
+    $self->run_in_powershell(cmd => q(wsl true));
+    sleep 60;    # give the system time to boot
+    $self->run_in_powershell(cmd => 'wsl --user root systemctl is-system-running');
+    sleep 60;    # give the system time to boot
+    $self->run_in_powershell(cmd => 'wsl --user root systemctl is-system-running');
     $self->run_in_powershell(
-        cmd => '$port.WriteLine($(wsl /bin/bash -c "systemctl is-system-running"))',
+        cmd => '$port.WriteLine($(wsl --user root systemctl is-system-running))',
         code => sub {
-            die("systemd is offline...")
+            die("systemd is not running")
               unless wait_serial("running", timeout => 120);
         }
     );
-    $self->run_in_powershell(cmd => q(wsl /bin/bash -c "exit"));
 }
 
 1;
