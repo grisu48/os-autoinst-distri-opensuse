@@ -7,6 +7,8 @@ package windowsbasetest;
 use JSON;
 use autotest 'query_isotovideo';
 use Mojo::Base qw(basetest);
+use Mojo::UserAgent;
+use Mojo::JSON qw(encode_json);
 use Utils::Architectures qw(is_aarch64);
 use testapi;
 use Data::Dumper;
@@ -122,33 +124,52 @@ sub run_in_powershell {
 
     # Use OPENQA_AGENT on the serial port for command execution
     if (check_var('OPENQA_AGENT', '1')) {
+        my $use_serial = 0;
 
-        my %backpack = (
-            regexp => "\n",
-            timeout => 90,
-            expect_not_found => 0,
-            quiet => 0,
-            no_regex => 1,
-            buffer_size => undef,
-            record_output => undef
-        );
-        #my $ret = query_isotovideo('backend_wait_serial', \%args);
+        if ($use_serial) {
+            my %backpack = (
+                regexp => "\n",
+                timeout => 90,
+                expect_not_found => 0,
+                quiet => 0,
+                no_regex => 1,
+                buffer_size => undef,
+                record_output => undef
+            );
+            #my $ret = query_isotovideo('backend_wait_serial', \%args);
 
 
-        # Note: The current console doesn't qualify as "serial" so we need to do everything by hand here.
-        query_isotovideo('backend_type_string', {text => $args{cmd} . "\n", max_interval => 125});
-        #query_isotovideo('backend_type_string', {text => $string, %args});
-        my $ret = query_isotovideo('backend_wait_serial', \%backpack);
-        die "No response from openQA agent" unless $ret;
-        record_info("ret", Dumper($ret));
-        die "Termination character not matched" unless $ret->{matched};
-        my $response = $ret->{string};
-        $response =~ s/\n$//;    # Crop termination character
-        die "No response from openQA agent" unless $response;
-        my $rc = decode_json($response);
-        die "Command failed: '$args{cmd}' returned with code $rc->{ret}" unless ($rc->{ret} == 0);
-        record_info($args{cmd}, "$rc->{stdout}\n$rc->{stderr}");
-        return;
+            # Note: The current console doesn't qualify as "serial" so we need to do everything by hand here.
+            query_isotovideo('backend_type_string', {text => $args{cmd} . "\n", max_interval => 125});
+            #query_isotovideo('backend_type_string', {text => $string, %args});
+            my $ret = query_isotovideo('backend_wait_serial', \%backpack);
+            die "No response from openQA agent" unless $ret;
+            record_info("ret", Dumper($ret));
+            die "Termination character not matched" unless $ret->{matched};
+            my $response = $ret->{string};
+            $response =~ s/\n$//;    # Crop termination character
+            die "No response from openQA agent" unless $response;
+            my $rc = decode_json($response);
+            die "Command failed: '$args{cmd}' returned with code $rc->{ret}" unless ($rc->{ret} == 0);
+            record_info($args{cmd}, "$rc->{stdout}\n$rc->{stderr}");
+            return;
+        } else {
+            my $body = encode_json {cmd => $args{cmd}, shell => "powershell.exe", timeout => 30};
+
+            # Use http server
+            my $ua = Mojo::UserAgent->new;
+            my $url = "http://10.0.2.15:8421/exec";
+            my $tx = $ua->post($url => json => $body);
+            if (my $res = $tx->success) {
+                my $response = $res->body;
+                record_info("POST", "POST:$url:\n$response");
+                my $json_response = $res->json;
+                die "not a json response" unless $json_response->{json};
+            } else {
+                die "error reaching openqa-agent";
+            }
+
+        }
     }
 
     my $rc_hash = testapi::hashed_string $args{cmd};
