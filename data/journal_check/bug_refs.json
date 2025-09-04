@@ -986,5 +986,12 @@
             "sle": ["16.0"]
         },
         "type": "ignore"
+    },
+    "bsc#1249120": {
+        "description": "dracut failure in encrypted images",
+        "products": {
+            "sle-micro": [ "6.2"]
+        },
+        "type": "ignore"
     }
 }
