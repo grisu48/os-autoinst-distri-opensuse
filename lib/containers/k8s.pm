@@ -19,7 +19,7 @@ use Utils::Systemd qw(systemctl);
 use containers::utils 'registry_url';
 use version_utils qw(is_sle is_microos is_public_cloud is_transactional is_sle_micro is_leap is_leap_micro is_tumbleweed);
 use registration qw(add_suseconnect_product get_addon_fullname);
-use transactional qw(trup_call check_reboot_changes);
+use transactional qw(trup_call check_reboot_changes process_reboot);
 
 our @EXPORT = qw(install_k3s uninstall_k3s install_kubectl install_helm apply_manifest wait_for_k8s_job_complete find_pods validate_pod_log);
 
@@ -52,7 +52,7 @@ sub check_k3s {
 }
 
 sub ensure_k3s_start {
-    systemctl('start k3s', timeout => 180);
+    systemctl('enable --now k3s', timeout => 300);
     systemctl('is-active k3s');
 }
 
@@ -118,6 +118,7 @@ sub install_k3s {
         assert_script_run("curl $curl_opts https://get.k3s.io -o install_k3s.sh");
         assert_script_run("sh install_k3s.sh $disables", timeout => 300);
         script_run("rm -f install_k3s.sh");
+        process_reboot(trigger => 1) if (is_transactional);
         zypper_call('in apparmor-parser') if is_sle('<15-SP4', get_var('HOST_VERSION', get_required_var('VERSION')));
         setup_and_check_k3s;
         return;
