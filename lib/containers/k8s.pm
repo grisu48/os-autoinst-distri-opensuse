@@ -51,7 +51,7 @@ sub check_k3s {
     assert_script_run("k3s kubectl auth can-i 'create' 'deployments'", timeout => 300);
 }
 
-sub ensure_k3s_start {
+sub start_k3s {
     systemctl('start k3s', timeout => 180);
     systemctl('is-active k3s');
 }
@@ -65,82 +65,64 @@ sub set_custom_registry {
     file_content_replace("/etc/rancher/k3s/registries.yaml", REGISTRY => $registry);
 }
 
-sub setup_and_check_k3s {
-    if (script_run('test -n "$INSTALL_K3S_SKIP_START"') == 0) {
-        set_custom_registry;
-        ensure_k3s_start;
-    }
+sub configure_k3s {
+    set_custom_registry;
     script_run("rm -rf ~/.kube");
     script_run('mkdir -p ~/.kube/');
     assert_script_run('ln -s /etc/rancher/k3s/k3s.yaml ~/.kube/config');
-    check_k3s;
 }
 
 =head2 install_k3s
-Deploy k3s using k3s-install script that is either pulled from upstream or distro
+Deploy k3s using k3s-install script that is either pulled from osado or upstream.
 =cut
 
 sub install_k3s {
     # k3s might be already installed by default
     return if (script_run('which k3s') == 0);
 
+    # Dependencies
+    zypper_call('in apparmor-parser') if is_sle('<15-SP4', get_var('HOST_VERSION', get_required_var('VERSION')));
+
+    # Assemble additional settings for the k3s installation
+    my @k3s_args = ();
+    push(@k3s_args, '--disable=metrics-server');
+    push(@k3s_args, '--disable-helm-controller') if (get_var('K3S_DISABLE_HELM_CONTROLLER'));
+    push(@k3s_args, '--disable=traefik') if (get_var('K3S_DISABLE_TRAEFIK'));
+    push(@k3s_args, '--disable=coredns') if (get_var('K3S_DISABLE_COREDNS'));
+
     # Apply additional k3s installation options
     # Note: The install script starts a k3s-server by default, unless INSTALL_K3S_SKIP_START is set to true
     # For more information see https://rancher.com/docs/k3s/latest/en/installation/install-options/#options-for-installation-with-script
-    my %k3s_args = (
+    my %k3s_envs = (
         INSTALL_K3S_SYMLINK => get_var('K3S_SYMLINK'),
         INSTALL_K3S_BIN_DIR => get_var('K3S_BIN_DIR'),
         INSTALL_K3S_CHANNEL => get_var('K3S_CHANNEL'),
         INSTALL_K3S_VERSION => get_var('K3S_VERSION'),
-        INSTALL_K3S_SKIP_START => get_var('K3S_SKIP_START', 'true'),
+        INSTALL_K3S_SKIP_START => get_var('K3S_SKIP_START', 'true'),    # do not start by default, so we can configure registries ecc. before
         K3S_NODE_NAME => 'k3s-node'
     );
-
-    # github.com/k3s-io/k3s#5946 - The kubectl delete namespace helm-ns-413 command freezes and does nothing
-    my $disables = '--disable=metrics-server';
-    $disables .= ' --disable-helm-controller' unless (get_var('K3S_ENABLE_HELM_CONTROLLER'));
-    $disables .= ' --disable=traefik' unless get_var('K3S_ENABLE_TRAEFIK');
-    $disables .= ' --disable=coredns' unless get_var('K3S_ENABLE_COREDNS');
-
-    while (my ($key, $value) = each %k3s_args) {
+    while (my ($key, $value) = each %k3s_envs) {
         if ($value) {
             assert_script_run("export $key=$value");
         }
-        delete $k3s_args{$key};
+        delete $k3s_envs{$key};
     }
 
-    if (get_var('K3S_INSTALL_UPSTREAM') || (is_sle || is_leap || is_sle_micro || is_leap_micro)) {
-        if (is_tumbleweed && !is_microos) {
-            zypper_call('in k3s-selinux');
-            record_soft_failure("gh#k3s-io/k3s#10876 - Support selinux on Tumbleweed");
-        }
-        my $curl_opts = "-sfL --retry 3 --retry-delay 60 --retry-max-time 180";
-        assert_script_run("curl $curl_opts https://get.k3s.io -o install_k3s.sh");
-        assert_script_run("sh install_k3s.sh $disables", timeout => 300);
-        script_run("rm -f install_k3s.sh");
-        zypper_call('in apparmor-parser') if is_sle('<15-SP4', get_var('HOST_VERSION', get_required_var('VERSION')));
-        setup_and_check_k3s;
-        return;
+    # Install either from osado or upstream
+    my $k3s_install_script = get_var("K3S_INSTALL_SCRIPT", "local");
+    if ($k3s_install_script eq '' || $k3s_install_script eq 'local' || $k3s_install_script eq 'osado') {
+        assert_script_run 'curl -o install_k3s ' . data_url('containers/data/install_k3s');
+    } elsif ($k3s_install_script eq 'upstream') {
+        assert_script_run("curl -sfL --retry 3 --retry-delay 60 --retry-max-time 180 https://get.k3s.io -o install_k3s.sh");
+    } else {
+        die "Unsupported setting for K3S_INSTALL_SCRIPT";
     }
 
-    # k3s-install script is already packaged for several products
-    my @pkgs = qw(k3s-install);
-    push @pkgs, 'apparmor-parser' if is_sle('<15-SP4');
-
-    if (script_run(sprintf('rpm -q %s', join(" ", @pkgs))) != 0) {
-        if (is_transactional) {
-            trup_call("pkg install @pkgs");
-            check_reboot_changes;
-        } else {
-            zypper_call("in @pkgs");
-        }
-    }
-
-    assert_script_run("k3s-install $disables");
-
-    setup_and_check_k3s;
+    assert_script_run("k3s-install " . join(" ", @k3s_args));
+    configure_k3s;
+    start_k3s;
+    check_k3s;
 }
-
 
 =head2 uninstall_k3s
 Uninstalls k3s
