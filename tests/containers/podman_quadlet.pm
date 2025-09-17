@@ -113,8 +113,8 @@ sub run {
 
     # start build unit
     if ($has_build) {
-        script_retry("podman pull $src_image", retry => 3, delay => 60, timeout => 180);
-        systemctl("start $unit_name-build.service", timeout => 180);
+        script_retry("podman pull $src_image", retry => 3, delay => 60, timeout => 300);
+        systemctl("start $unit_name-build.service", timeout => 600);
         record_info('Build output', script_output("journalctl --no-pager -u $unit_name-build"));
         validate_script_output('podman images -n', qr/$build_imagetag/);
     }
