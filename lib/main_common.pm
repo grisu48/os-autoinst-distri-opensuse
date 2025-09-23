@@ -1465,6 +1465,7 @@ sub load_x11tests {
             loadtest "x11/amarok";
         }
         loadtest "x11/kontact" unless is_kde_live || !(is_x86_64 || is_aarch64 || is_riscv);
+        loadtest "x11/labplot" unless is_kde_live || !(is_x86_64 || is_aarch64 || is_riscv);
         if (!get_var("USBBOOT") && !is_livesystem) {
             if (get_var("PLASMA5")) {
                 loadtest "x11/reboot_plasma5";
