@@ -10,6 +10,7 @@ use base "consoletest";
 use testapi;
 use containers::common;
 use version_utils qw(is_sle_micro is_leap_micro is_microos);
+use utils;
 use transactional;
 use Utils::Architectures qw(is_ppc64le);
 
@@ -86,33 +87,35 @@ sub run {
     }
 
     record_info 'Test', "Run toolbox without flags";
+    script_retry("podman pull $toolbox_image_to_test", retry => 3, delay => 60, timeout => 300) if ($toolbox_image_to_test);
     assert_script_run 'toolbox -r id', timeout => 300;
-    validate_script_output 'podman ps -a', sub { m/toolbox-root/ };
+    validate_script_output 'podman ps -a', sub { m/toolbox-root/ }, timeout => 300;
     assert_script_run 'podman rm toolbox-root';
 
     record_info 'Test', "Run toolbox with a given tag";
-    assert_script_run 'toolbox -t test_tag id', timeout => 180;
-    validate_script_output 'podman ps -a', sub { m/toolbox-root-test_tag/ };
+    assert_script_run 'toolbox -t test_tag id', timeout => 300;
+    validate_script_output 'podman ps -a', sub { m/toolbox-root-test_tag/ }, timeout => 300;
     assert_script_run 'podman rm toolbox-root-test_tag';
 
     record_info 'Test', "Run toolbox with a given name";
-    assert_script_run 'toolbox -c test_name id';
-    validate_script_output 'podman ps -a', sub { m/test_name/ };
+    assert_script_run 'toolbox -c test_name id', timeout => 300;
+    validate_script_output 'podman ps -a', sub { m/test_name/ }, timeout => 300;
     assert_script_run 'podman rm test_name';
 
 
     record_info 'Test', "Rootless toolbox as $user";
     my $console = select_console 'user-console';
     my $uid = script_output 'id -u';
+    script_retry("podman pull $toolbox_image_to_test", retry => 3, delay => 60, timeout => 300) if ($toolbox_image_to_test);
     validate_script_output 'toolbox -u id', sub { m/uid=${uid}\(${user}\)/ }, timeout => 300;
     die "$user shouldn't have access to /etc/passwd!" if (script_run('toolbox -u touch /etc/passwd') == 0);
     # Check if toolbox sees processes from outside the container (there should be no pid namespace separation)
     background_script_run 'sleep 3612';
-    validate_script_output 'toolbox ps a', sub { m/sleep 3612/ };
+    validate_script_output 'toolbox ps a', sub { m/sleep 3612/ }, timeout => 300;
 
     record_info 'Test', "Rootfull toolbox as $user";
-    validate_script_output 'toolbox -r id', sub { m/uid=0\(root\)/ };
-    assert_script_run 'toolbox -r touch /etc/passwd', fail_message => 'Root should have access to /etc/passwd!';
+    validate_script_output 'toolbox -r id', sub { m/uid=0\(root\)/ }, timeout => 300;
+    assert_script_run 'toolbox -r touch /etc/passwd', fail_message => 'Root should have access to /etc/passwd', timeout => 300;
     assert_script_run 'podman ps -a';
 
     # toolbox will only inherit repos from the host when run as rootfull (or root)
@@ -133,7 +136,7 @@ sub run {
         }
     }
 
-    clean_container_host(runtime => 'podman');
+    clean_container_host();
 
     enter_cmd "exit";
     $console->reset;
@@ -147,10 +150,10 @@ sub run {
         # Switch default registries for openSUSE MicroOS and SLE Micro
         if (is_sle_micro) {
             assert_script_run 'echo -e "REGISTRY=registry.opensuse.org\nIMAGE=opensuse/toolbox" > ~/.toolboxrc';
-            validate_script_output 'toolbox -r cat /etc/os-release', sub { m/opensuse/ }, timeout => 180;
+            validate_script_output_retry('toolbox -r cat /etc/os-release', sub { m/opensuse/ }, retry => 3, delay => 120, timeout => 300);
         } else {
             assert_script_run 'echo -e "REGISTRY=registry.suse.com\nIMAGE=suse/sle-micro/5.3/toolbox" > ~/.toolboxrc';
-            validate_script_output 'toolbox -r cat /etc/os-release', sub { m/sles/ }, timeout => 180;
+            validate_script_output_retry('toolbox -r cat /etc/os-release', sub { m/sles/ }, retry => 3, delay => 120, timeout => 300);
         }
         assert_script_run 'podman rm toolbox-root';
         assert_script_run 'rm ~/.toolboxrc';
@@ -158,14 +161,14 @@ sub run {
 
     record_info 'Test', 'Zypper tests';
     assert_script_run 'toolbox create -r -c devel';
-    validate_script_output 'toolbox list', sub { m/devel/ }, timeout => 180;
+    validate_script_output 'toolbox list', sub { m/devel/ }, timeout => 300;
     if ($toolbox_has_repos) {
         # The has_repos is actually called on a different toolbox container ...
         if (is_leap_micro('>=6.0')) {
             assert_script_run 'toolbox run -c devel -- zypper -n ref -s', timeout => 300;
         }
-        assert_script_run 'toolbox run -c devel -- zypper lr -u', timeout => 180;
-        assert_script_run 'toolbox run -c devel -- zypper -n in sysstat', timeout => 180;
+        assert_script_run 'toolbox run -c devel -- zypper lr -u', timeout => 300;
+        assert_script_run 'toolbox run -c devel -- zypper -n in sysstat', timeout => 300;
     }
     assert_script_run 'podman rm devel';
 
@@ -173,11 +176,8 @@ sub run {
 }
 
 sub clean_container_host {
-    my %args = @_;
-    my $runtime = $args{runtime};
-    die "You must define the runtime!" unless $runtime;
-    assert_script_run("$runtime ps -q | xargs -r $runtime stop", 180);
-    assert_script_run("$runtime system prune -a -f", 300);
+    assert_script_run("podman ps -q | xargs -r podman stop", 300);
+    assert_script_run("podman system prune -a -f", 300);
 }
 
 sub test_flags {
