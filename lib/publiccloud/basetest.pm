@@ -25,6 +25,7 @@ use Data::Dumper;
 use Storable qw(dclone);
 use strict;
 use warnings;
+use version_utils qw(is_tunneled);
 
 sub provider_factory {
     my ($self, %args) = @_;
@@ -211,6 +212,7 @@ sub _upload_logs {
 
     if ($self->{run_args} && $self->{run_args}->{my_instance}) {
         diag($start_text . 'Valid instance $self->{run_args}->{my_instance};');
+        select_console("root-console") unless is_tunneled;
         my @instance_logs = ('/var/log/cloudregister', '/etc/hosts', '/var/log/zypper.log', '/etc/zypp/credentials.d/SCCcredentials');
         for my $instance_log (@instance_logs) {
             $self->{run_args}->{my_instance}->ssh_script_run("sudo chmod a+r " . $instance_log, quiet => 1, proceed_on_failure => 1);
