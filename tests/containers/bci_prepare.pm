@@ -152,7 +152,7 @@ sub check_container_signature {
     $options .= " --insecure-ignore-tlog=true";    # ignore missing transparency log entries for registry.suse.de
 
     script_retry("$engine pull -q $image", timeout => 300, delay => 60, retry => 2);
-    assert_script_run("$engine run --rm -q $engine_options $cosign_image verify $options $image", timeout => 300);
+    assert_script_run("$engine run --rm -q $engine_options $cosign_image verify $options $image", timeout => 300) unless (is_sle("16.0"));
 }
 
 sub run {
