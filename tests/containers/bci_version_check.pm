@@ -21,6 +21,7 @@ use serial_terminal 'select_serial_terminal';
 sub run {
     select_serial_terminal;
 
+    return if check_var('BCI_SKIP_VERSIONCHECK', 1);
     return unless (get_var('CONTAINER_IMAGE_TO_TEST') && get_var('CONTAINER_IMAGE_BUILD'));
 
     my $image = get_required_var('CONTAINER_IMAGE_TO_TEST');

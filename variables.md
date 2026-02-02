@@ -37,6 +37,7 @@ BCI_TIMEOUT | string | | Timeout given to the command to test each environment. 
 BCI_TARGET | string | ibs-cr | Container project to be tested. `ibs-cr` is the CR project, `ibs` is the released images project
 BCI_PREPARE | boolean | false | Launch the bci_prepare step again. Useful to re-initialize the BCI-Test repo when using a different BCI_TESTS_REPO
 BCI_OS_VERSION | string | | Set the environment variable OS_VERSION to this value, if present
+BCI_SKIP_VERSIONCHECK | boolean | false | Skip the container version check
 BOOTLOADER | string | grub2 | Which bootloader is used by the image or will be selected during installation, e.g. `grub2`, `grub2-bls`, `systemd-boot`
 BTRFS | boolean | false | Indicates btrfs filesystem. Deprecated, use FILESYSTEM instead.
 BUILD | string  |       | Indicates build number of the product under test.
