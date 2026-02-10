@@ -879,10 +879,6 @@ held by another process.
 
 =back
 
-=head3 Transactional Systems
-If C<is_transactional()> is true, the command is prefixed with C<transactional-update -n pkg>.
-Additionally, a C<softreboot()> is triggered automatically upon success to apply changes.
-
 =head3 Error Handling
 On failure, the function:
 1. Uploads C</var/log/zypper.log> to the test results.
@@ -896,7 +892,7 @@ sub zypper_call_remote {
     my $instance = shift;
     my %args = testapi::compat_args({cmd => undef}, ['cmd'], @_);
     $args{rc_only} = 1;
-    $args{timeout} //= is_transactional() ? 900 : 700;
+    $args{timeout} //= 900;
     die "Invalid value 'timeout' = 0" unless ($args{timeout});
     die "Empty 'cmd' argument in zypper call" unless ($args{cmd});
     die "Exit code is from PIPESTATUS[0], not grep" if $args{cmd} =~ /^((?!`).)*\| ?grep/;
@@ -959,7 +955,6 @@ sub zypper_call_remote {
         record_info("zypper error", $msg, result => 'fail');
     }
     record_info("zypper remote call", "Command: $cmd \nResult: $ret");
-    $instance->softreboot() if is_transactional();
     return $ret;
 }
 
