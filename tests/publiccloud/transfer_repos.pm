@@ -33,8 +33,10 @@ sub run {
     # Those two variables contain list of repositories separated by comma
     set_var('MAINT_TEST_REPO', get_var('INCIDENT_REPO')) unless get_var('MAINT_TEST_REPO');
 
-    # We need to exclude embargoed incidents
     my @all_repos = split(/,/, get_var('MAINT_TEST_REPO'));
+    # ensure we're not running dry
+    die "No test repositories defined" if (!@all_repos && !check_var('PUBLIC_CLOUD_SKIP_MU', '1'));
+    # Exclude embargoed incidents
     for my $exclude (split(/,/, get_var('EXCLUDED_TEST_REPO', ''))) {
         for my $index (reverse 0 .. $#all_repos) {
             splice(@all_repos, $index, 1, ()) if ($all_repos[$index] =~ /$exclude/);
