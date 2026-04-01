@@ -60,9 +60,13 @@ sub post_fail_hook {
     # Collect the dmesg and allocator logs
     $instance->ssh_script_run("sudo dmesg > dmesg.log");
     $instance->ssh_script_run("sudo journalctl -eu nitro-enclaves-allocator.service > nitro-enclaves-allocator-service.log");
-    $instance->scp("remote:{nitro-enclaves-allocator-service.log,dmesg.log} .");
+    $instance->scp("remote:{nitro-enclaves-allocator-service.log,dmesg.log,nitro-enclaves-log.tar} .");
     upload_logs("nitro-enclaves-allocator-service.log", failok => 1);
     upload_logs("dmesg.log", failok => 1);
+    if ($instance->ssh_script_run("sudo tar -cf nitro-enclaves-log.tar /var/log/nitro_enclaves") == 0) {
+        $instance->scp("remote:{nitro-enclaves-log.tar} .");
+        upload_logs("nitro-enclaves-log.tar", failok => 1);
+    }
     $self->SUPER::post_fail_hook;
 }
 
