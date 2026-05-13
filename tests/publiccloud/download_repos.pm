@@ -58,7 +58,7 @@ sub run {
     my $reject = "'robots.txt,*.ico,*.png,*.gif,*.css,*.js,*.htm*,*.mirrorlist'";
     # If running on x86_64, also ignore aarch64 and viceversa
     my $other = check_var("ARCH", "x86_64") ? "aarch64" : "x86_64";
-    my $regex = "'s390x\\/|ppc64le\\/|$other\\/|kernel*debuginfo*.rpm|src\\/'";
+    my $regex = "'s390x\\/|ppc64le\\/|$other\\/|kernel*debuginfo*.rpm|src\\/|iso'";
 
     set_var("PUBLIC_CLOUD_EMBARGOED_UPDATES_DETECTED", 0);
 
