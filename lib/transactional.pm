@@ -148,6 +148,8 @@ sub process_reboot {
             wait_screen_change { send_key 'ret' };
         }
         assert_screen 'linux-login', 200;
+        save_screenshot;
+        record_info("Login DONE");
 
         # Login & clear login needle
         select_console 'root-console';
