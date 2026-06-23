@@ -114,7 +114,7 @@ sub process_reboot {
 
     # Switch to root-console as we need VNC to check for grub and for login prompt
     my $prev_console = current_console();
-    select_console 'root-console', await_console => 0 unless ($prev_console eq 'root-console');
+    select_console('root-console', await_console => 0) unless ($prev_console eq 'root-console');
 
     handle_first_grub if ($args{automated_rollback});
 
@@ -156,7 +156,7 @@ sub process_reboot {
     }
 
     # Switch to the previous console
-    select_console $prev_console;
+    select_console($prev_console) unless ($prev_console eq 'root-console');
 }
 
 # Reboot if there's a diff between the current FS and the new snapshot
