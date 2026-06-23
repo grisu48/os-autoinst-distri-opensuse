@@ -151,8 +151,10 @@ sub process_reboot {
 
         # Login & clear login needle
         select_console 'root-console';
-        record_kernel_audit_messages();
+        #record_kernel_audit_messages();
+        save_screenshot;
         assert_script_run 'clear';
+        save_screenshot;
     }
 
     # Switch to the previous console
