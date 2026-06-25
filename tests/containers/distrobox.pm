@@ -13,10 +13,10 @@ use serial_terminal qw(select_serial_terminal select_user_serial_terminal);
 use package_utils 'install_package';
 use utils qw(script_retry);
 
-our $user = $testapi::username;
-our $password = $testapi::password;
-
 sub create_user {
+    my $user = $testapi::username;
+    my $password = $testapi::password;
+
     if (script_run("getent passwd $user") != 0) {
         assert_script_run "useradd -m $user";
         assert_script_run "echo '$user:$password' | chpasswd";
@@ -28,7 +28,13 @@ sub create_user {
 
 sub run {
     my ($self) = @_;
+    my $user = $testapi::username;
+    my $password = $testapi::password;
+
     select_serial_terminal;
+    record_info("user", "$user\n$password");
+    record_info("testapi", $testapi::username);
+    die "no user defined" unless ($user);
     $self->create_user;
 
     install_package('distrobox', trup_reboot => 1) if script_run 'rpm -q distrobox';
@@ -52,13 +58,13 @@ sub run {
     validate_script_output 'distrobox list', sub { !m/box-root/ };
 
     record_info 'Test', 'Test ephemeral function, which removes the container after execution';
-    assert_script_run 'distrobox ephemeral -n box-root -- whoami';
-    validate_script_output 'distrobox list', sub { !m/box-root/ };
+    assert_script_run 'distrobox ephemeral -n ephemeral-box -- whoami';
+    validate_script_output 'distrobox list', sub { !m/ephemeral-box/ };
 
     record_info 'Test', 'Test upgrade function';
-    script_retry('distrobox create --pull -n box-root', delay => 60, retry => 3, timeout => 300);
-    assert_script_run 'distrobox upgrade box-root', timeout => 300;
-    assert_script_run 'distrobox rm box-root';
+    script_retry('distrobox create --pull -n upgrade-box', delay => 60, retry => 3, timeout => 300);
+    assert_script_run 'distrobox upgrade upgrade-box', timeout => 300;
+    assert_script_run 'distrobox rm upgrade-box';
 
     select_user_serial_terminal;
     my $uid = script_output 'id -u';
