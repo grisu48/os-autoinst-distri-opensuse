@@ -136,7 +136,10 @@ sub run {
     test_container_runtimes($instance) if (is_sle('>=15-SP5'));
 
     rotate_cloudregister_log($instance);
-    force_new_registration($instance);
+    if (!force_new_registration($instance)) {
+        record_soft_failure("bsc#1264275 This combination of system login, password and token is already taken");
+        return;
+    }
 
     rotate_cloudregister_log($instance);
     register_addons_in_pc($instance);
@@ -244,17 +247,21 @@ sub cleanup_instance {
     check_instance_unregistered($instance);
 }
 
+# Try to re-register. Returns 0 in case it fails due to bsc#1264275 and 1 otherwise
 sub force_new_registration {
     my ($instance) = @_;
     record_info('Forcing a new registration...');
-    $instance->ssh_script_retry(cmd => "sudo registercloudguest $regcode_param --force-new", timeout => 300, retry => 3, delay => 120);
+    if ($instance->ssh_script_retry(cmd => "sudo registercloudguest $regcode_param --force-new &> output", timeout => 300, retry => 3, delay => 120, die => 0) != 0) {
+        return 0 if ($instance->ssh_script_output("cat output") =~ /This combination of system login, password and token is already taken/);
+        die "Re-registration failed";
+    }
     # https://progress.opensuse.org/issues/196370 workaround for a known issue on 15-SP5
     if (is_sle('=15-SP5')) {
         pc_pkg_call($instance, "update -y", retry => 3, delay => 60, timeout => 600);
         $instance->softreboot(timeout => 3600);
     }
     check_instance_registered($instance);
-    return 0;
+    return 1;
 }
 
 sub post_fail_hook {
