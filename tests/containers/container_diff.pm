@@ -27,16 +27,6 @@ sub run {
 
     zypper_call("install container-diff") if (script_run("which container-diff") != 0);
 
-    # Authenticate against registry.suse.com before pulling the released
-    # LTSS image (bsc#1274889). Avoids "docker login -u/-p", which would
-    # print the credentials in the test logs.
-    if (is_sle("=12-sp5")) {
-        assert_script_run('mkdir -p ~/.docker');
-        assert_script_run(
-q{printf '{"auths":{"registry.suse.com":{"auth":"%s"}}}' "$(awk -F= '/^username/{u=$2} /^password/{p=$2} END{printf "%s:%s", u, p}' /etc/zypp/credentials.d/SCCcredentials | base64 -w0)" > ~/.docker/config.json}
-        );
-    }
-
     my $unreleased_image = get_image_uri(released => 0);
     my $released_image = get_image_uri(released => 1);
     # container-diff
