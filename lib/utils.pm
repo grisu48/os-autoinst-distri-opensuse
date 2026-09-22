@@ -499,11 +499,7 @@ sub check_console_font {
     # ssh connection) and don't see the console font but the local
     # xterm font - no reason to change
     return if script_run 'showconsolefont';
-    assert_screen [qw(broken-console-font correct-console-font)];
-    if (match_has_tag 'broken-console-font') {
-        assert_script_run("/usr/lib/systemd/systemd-vconsole-setup");
-        assert_screen 'correct-console-font';
-    }
+    assert_screen 'correct-console-font';
 }
 
 =head2 type_string_slow_extended
