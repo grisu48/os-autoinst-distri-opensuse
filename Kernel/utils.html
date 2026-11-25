@@ -15,9 +15,14 @@
   <li>
     <ul>
       <li><a href="#is_debugfs_mounted">is_debugfs_mounted</a></li>
+      <li><a href="#get_mount_info">get_mount_info</a></li>
       <li><a href="#enable_debugfs">enable_debugfs</a></li>
       <li><a href="#get_kernel_config">get_kernel_config</a></li>
       <li><a href="#get_verified_shallow_tar">get_verified_shallow_tar</a></li>
+      <li><a href="#start_trace_events">start_trace_events</a></li>
+      <li><a href="#save_trace">save_trace</a></li>
+      <li><a href="#install_fio_debug_wrapper">install_fio_debug_wrapper</a></li>
+      <li><a href="#find_kernel_traces">find_kernel_traces</a></li>
     </ul>
   </li>
 </ul><h1>lib/Kernel/utils.pm</h1>
@@ -27,6 +32,12 @@
 <pre><code>is_debugfs_mounted();</code></pre>
 
 <p>Checks whether debugfs is mounted at /sys/kernel/debug, same check as blktests&#39; <code>_have_debugfs()</code>. Returns true/false.</p>
+
+<h2 id="get_mount_info">get_mount_info</h2>
+
+<pre><code>my $mount = get_mount_info($path);</code></pre>
+
+<p>Returns a hash reference with <code>target</code>, <code>source</code>, <code>fstype</code> and <code>options</code> of the file system that <code>$path</code> is on, from <code>findmnt -T</code>. For example, <code>target</code> <code>/var</code>, <code>source</code> <code>/dev/sda2[/@/var]</code>, <code>fstype</code> <code>btrfs</code>. Dies if <code>$path</code> is on no mounted file system.</p>
 
 <h2 id="enable_debugfs">enable_debugfs</h2>
 
@@ -47,6 +58,50 @@
 <p>Downloads the kernel.org shallow-clone tarball for the given <code>tree</code> and <code>branch</code>, verifies it via the signed checksums, and checks out <code>commit</code> into <i>./linux</i>. <code>commit</code> should always be supplied in CI; omitting it checks out the current tip (the bundle is published nightly).</p>
 
 <p>See <a href="https://people.kernel.org/monsieuricon/using-shallow-git-tarballs-for-ci">https://people.kernel.org/monsieuricon/using-shallow-git-tarballs-for-ci</a>.</p>
+
+<h2 id="start_trace_events">start_trace_events</h2>
+
+<pre><code>start_trace_events(\@events);
+start_trace_events(\@events, filters =&gt; {$event =&gt; $filter}, buffer_kb =&gt; $kb);</code></pre>
+
+<p>Enable kernel tracepoints in tracefs and start to trace. Each event is <code>system/event</code>, a shell glob selects several events, e.g. <code>nfs4/pnfs_*</code>. Events that the kernel does not provide are skipped.</p>
+
+<p>The events go to the trace ring buffer, which keeps the newest events when it is full. Thus the trace can run for a long time without filling the disk. <code>save_trace</code> saves it.</p>
+
+<p>If the first event is enabled already, e.g. by an earlier call before each subtest, only clear the trace. This keeps repeated calls short. After a reboot the events are enabled again.</p>
+
+<p>Arguments: \@events - Events to enable filters - Optional event filters, e.g. <code>&#39;dev == 7340033&#39;</code> buffer_kb - Optional ring buffer size per CPU in KiB (default: 8192)</p>
+
+<h2 id="save_trace">save_trace</h2>
+
+<pre><code>save_trace($file);</code></pre>
+
+<p>Save the trace started by <code>start_trace_events</code> to <code>$file</code>.</p>
+
+<h2 id="install_fio_debug_wrapper">install_fio_debug_wrapper</h2>
+
+<pre><code>install_fio_debug_wrapper($dir);</code></pre>
+
+<p>Install a wrapper as <i>/usr/local/bin/fio</i>, so that tests which call fio from <code>PATH</code> run it with <code>--debug=file,mem</code> and <code>strace</code> of the failed syscalls. For each fio run the wrapper keeps the job file, the command line, the debug output and the strace output in <code>$dir</code>, named by the pid of the wrapper.</p>
+
+<p>Only fio runs that write the results to a file with <code>--output=</code> are changed, else the debug output would change the output of the test. The debug output is kept out of the <code>--output</code> file too, tests often copy this file to their logs.</p>
+
+<p>Without <code>strace</code> 5.2 or newer (for <code>-Z</code>) fio runs without strace.</p>
+
+<h2 id="find_kernel_traces">find_kernel_traces</h2>
+
+<pre><code>my $traces = find_kernel_traces([file =&gt; $file] [, since =&gt; $text]
+    [, ignore =&gt; \@regexps] [, ignore_file =&gt; $file]);</code></pre>
+
+<p>Find the kernel log lines that show a call trace, a kernel BUG, an Oops, a kernel panic or a hung task. The function reads <code>dmesg</code>, or <code>file</code> if you give it.</p>
+
+<p>With <code>since</code>, the function only reads the last line that contains <code>$text</code> and the lines after it. If no line contains <code>$text</code>, for example because the SUT rebooted, the function returns <code>undef</code>.</p>
+
+<p><code>ignore</code> is a list of extended regular expressions. The function removes the lines that match before it does the check. <code>ignore_file</code> is a file with more of these expressions, one for each line. The function uses it only if it exists.</p>
+
+<p>Each step writes its result to a file in <code>$KERNEL_TRACE_DIR</code> on the SUT (<i>0-log</i>, <i>1-since</i>, <i>2-ignore</i>, <i>3-ignore_file</i>, <i>4-traces</i>), so you can look at them when the result is not what you expect. The next call overwrites them.</p>
+
+<p>Returns a reference to the list of lines that it found (the list can be empty, at most 100 lines).</p>
 
 
 </body>
